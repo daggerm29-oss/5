@@ -1,67 +1,144 @@
-# Progress Log — AI Dev Environment Research & Planning
+# HELIX — Development Progress
 
-> Purpose: lets any future AI session resume this task without starting over.
-> Task source: user brief "Build a Next-Generation AI Development Environment — Research, Product Planning & Architecture".
-> Deliverables (ONLY): `plan.md` and `architecture.md` (+ this `progress.md` tracker, explicitly requested by the user).
-> Hard constraints: NO application code, NO prototypes, NO dependency installs, NO extra project files.
-> Working codename for the product in both docs: **Helix**.
+> **Read this first.** This file is the single source of truth for what is actually implemented. `plan.md` is the product spec, and `architecture.md` is the technical blueprint. A status of **Verified** means an automated or manual check proved the acceptance criteria. Written code alone is at most **Implemented**.
 
-## Status: COMPLETE (chat 2, 2026-11-06)
+## Project Status
 
-All deliverables are finished and cross-checked: `plan.md` (20 sections + Appendices A–C) and `architecture.md` (34 sections, 26 Mermaid diagrams, per-ID traceability in §31.4). No further work is required. Any future session should only make targeted revisions requested by the user. Re-run the cross-check described under "Chat 2" after edits.
+- Project: Helix
+- Current Phase: M0 — Engineering Foundations
+- Overall Completion: ~2% (M0 just started; M1–M6 not started)
+- Current Status: In Progress
+- Last Updated: 2026-11-06
+- Current Development Branch: `helix/m0-foundations`
 
-## Plan
-1. [x] Research (web) — done, notes below.
-2. [x] Write `plan.md` (20 required sections + appendices A traceability, B open questions, C glossary). DONE (951 lines).
-   - Arch § references used in plan.md (architecture.md MUST honor these numbers/sub-numbers): §5, §5.4–5.6, §7, §7.3–7.6, §8, §8.5, §9, §9.4–9.7, §10, §10.2–10.6, §11, §11.4–11.7, §12, §12.3, §13, §13.4–13.6, §14, §14.4, §14.6, §15, §15.4, §16, §16.3–16.7, §17, §17.2, §18, §18.3–18.7, §19, §19.4, §20, §20.3–20.6, §22.6, §25, §25.6, §25.8, §26, §26.4–26.5, §28, §29, §29.2, §29.4, §29.6, §31.
-3. [ ] Write `architecture.md` (34 required sections — brief §12 File 2) in two passes:
-   - [x] Pass A: sections 1–17 DONE (1116 lines). File ends with marker `<!-- ARCH-PASS-B -->`.
-   - [x] Pass B: sections 18–34 DONE (verified in chat 2: file is 2109 lines, marker removed, §18–§34 present, ends with ADR table ADR-001…ADR-023).
-   - (original Pass B instructions kept for reference) sections 18–34 — replace the marker line with content. Must include §18.3–18.7, §19.4, §20.3–20.6, §22.6, §25.6, §25.8, §26.4–26.5, §28 (incl. §28.4 session handoff), §29.2/29.4/29.6, §31, Mermaid data-flow diagrams (§30), repo tree (§32), ADR list (§34; ADR-002 = Code-OSS fork rejected, revisit trigger).
-4. [x] Cross-check: every F-ID in plan.md maps to an architecture.md section (per-ID table now in arch §31.4).
-5. [x] Mark complete.
+## Phase Overview
 
-## Completed
-- Research round (Nov 6, 2026).
+| Phase | Name | Status | Completion |
+|---|---|---|---|
+| M0 | Engineering Foundations | In Progress | 5% |
+| M1 | Core MVP | Not Started | 0% |
+| M2 | Advanced Intelligence | Not Started | 0% |
+| M3 | Multi-Agent Intelligence | Not Started | 0% |
+| M4 | Team and Ecosystem | Not Started | 0% |
+| M5 | Platform Expansion | Not Started | 0% |
+| M6 | Collaboration | Not Started | 0% |
 
-## Key decisions (keep consistent across both docs)
-- Headless **Helix Engine** (TypeScript/Node orchestration + Rust native modules via napi-rs) shared by Desktop (Electron + React + Monaco + xterm.js), CLI/TUI, and cloud workers. Modular monolith, no microservices at start.
-- Storage: per-workspace SQLite (WAL) + Tantivy (BM25) + LanceDB (vectors); cloud: Postgres + pgvector + S3.
-- Indexing: tree-sitter + SCIP/LSP for precise refs, code graph in SQLite, hybrid retrieval (BM25 + vector + graph expansion + rerank).
-- Sandbox: SandboxProvider interface; local = rootless container (optionally gVisor) or OS sandbox light mode; cloud = Firecracker microVMs (self-host) or provider (Vercel Sandbox/E2B). Egress proxy w/ allowlist + credential masking.
-- Browser: Playwright/CDP Chromium in sandbox; injected runtime probe; dev-time source-location instrumentation; "Environment Snapshot" (a11y-tree refs + console/network digests + perceptual-hash screenshots on demand).
-- Agents: one primary agent + isolated subagents (explore, browser-verify, test, review); task DAG orchestrator; file write leases; git worktree per parallel agent; shadow-git checkpoints.
-- MCP: spec 2026-07-28 (stateless requests; extensions Tasks, Skills over MCP, MCP Apps); tool registry + tool-search meta-tool (deferred schemas); result compression + cache; MCP servers sandboxed; tool output = untrusted.
-- OpenAI auth: API key + official "Sign in with ChatGPT" (SIWC) OAuth/OIDC+PKCE; NEVER read Codex `~/.codex/auth.json`. Commercial SIWC = limited trial (needs partnership); OSS clients eligible.
-- Gemini: user API key; models from ai.google.dev list (gemini-4-argon, gemini-3.8-flash, gemini-3.5-flash-lite, gemini-embedding-2); context caching.
-- No time estimates in roadmap — use milestones, T-shirt complexity, exit criteria.
+## Current Phase Details
 
-## Research notes (source → finding)
-- Cursor changelog (cursor.com/changelog): Nov 5 2026 "Build Live Apps" (cloud agent scaffolds app, Postgres, SSO auth, hosting, security checks before publish); Oct 20 Agent SDK (agents-as-code: instructions.md, tools/, skills/, mcp-connections/, channels/, evals); Oct 16 cloud agent canvases, Environments API beta, up to 300 repos/env; Oct 13 Origin App Marketplace; Oct 6 remote control of local agents via iOS. Search summary: async subagents, always-on cloud agents w/ event subscriptions, /goal, /in-cloud subagents.
-- Cursor docs/semantic-search: Instant Grep (custom engine, local index, "does not store embeddings of your codebase for search"), Explore subagent w/ own context + faster model. Multi-root supported; worktrees disabled in multi-root; cloud agents no multi-root.
-- Cursor models page: very large multi-provider catalog (Anthropic, OpenAI GPT-5.x, Gemini 3.x/4 Argon, Composer 2.5, Grok 4.x, Kimi, GLM, DeepSeek, Meta Muse); Max Mode; per-model context 200k–1M.
-- Antigravity docs home: surfaces = Antigravity 2.0 desktop (Projects, workspaces/worktrees, parallel local subagents, Scheduled Tasks, voice), CLI (TUI), SDK (Python, declarative safety policies, inspect/decide/transform hooks), IDE. Harness co-trained w/ Gemini; Gemini 3.8 Flash powers local agents; Visual Artifacts (plans, diffs, browser recordings); local proxying + tool approval gates. Search: Agent panel @/slash, per-turn Accept/Reject, Local vs New Worktree mode, /goal /grill-me /schedule /browser; browser subagent controls local Chrome, screenshots + WebM recordings; artifact review policies.
-- Claude Code overview (code.claude.com/docs/en/overview): surfaces terminal/IDE/desktop/web/JetBrains; CLAUDE.md (reads AGENTS.md), auto memory, skills, hooks, MCP, parallel agents w/ lead agent, background agents, Agent SDK, cloud scheduled tasks, /loop, Remote Control, Channels, teleport, GitHub Code Review, Chrome for debugging live web apps.
-- Claude Code sandboxing: OS-enforced (Seatbelt macOS, bubblewrap+socat Linux/WSL2), via @anthropic-ai/sandbox-runtime; covers shell only (file tools, MCP, hooks outside); default reads most of machine; network via local proxy allowlist; credential deny/mask w/ sentinel + TLS-terminating proxy injection; strict mode disables unsandboxed retry; repo settings can't loosen admin-required sandbox.
-- v0 docs: prompt→app, design mode, Git/PR, one-click deploy, auto error fixing, web search, site inspection, MCP; previews run in Vercel Sandbox VMs (search summary).
-- Vercel Sandbox docs: Firecracker microVMs, ms startup, persistent by default, snapshots, drives, multi-agent Linux users, Active CPU pricing, OIDC auth, custom OCI images.
-- OpenAI Codex auth docs: ChatGPT sign-in or API key; Codex cloud requires ChatGPT sign-in; creds cached in ~/.codex/auth.json (plaintext) or keyring; Enterprise Codex access tokens for automation; forced_login_method.
-- OpenAI SIWC (developers.openai.com/siwc/quickstart; openai.com/form/sign-in-with-chatgpt-interest/): OIDC + PKCE; identity scopes `openid profile email`; separate Responses API scopes for plan usage; OSS clients register w/o client secret; commercial partners = limited trial via interest form; Plus/Pro plan usage.
-- Gemini models (ai.google.dev/gemini-api/docs/models, updated 2026-10-28): gemini-4-argon (flagship, 1M ctx), gemini-3.8-flash, gemini-3.6-flash, gemini-3.5-flash-lite, gemini-3.1-pro-preview, gemini-embedding-2 (multimodal), antigravity-preview-09-2026 managed agent; 2.5 models restricted to prior users; computer-use model shut down.
-- MCP spec latest (2026-07-28): JSON-RPC 2.0; stateless self-contained requests; per-request capability negotiation; server features Resources/Prompts/Tools; client feature Elicitation; extensions Tasks, Skills over MCP, MCP Apps; tool annotations untrusted unless trusted server.
+**Objectives (plan §12 M0):** monorepo + build, Helix Engine process (JSON-RPC over WebSocket/stdio), event bus, SQLite storage, Gemini and OpenAI API-key adapters + conformance suite, local sandbox v0 (no masking), tool framework (fs, shell, search-exact), CLI `helix -p`, ledger v0, OpenTelemetry spans.
 
-## Chat 2 (resume) log
-- Pulled files from github.com/daggerm29-oss/3 into the v0 project root (plan.md, architecture.md, progress.md).
-- Confirmed architecture.md Pass B finished in chat 1 (progress.md had not been updated before tokens ran out).
-- NOW: step 4 cross-check — (a) every `§N.N` cited in plan.md exists as a heading in architecture.md; (b) every F-ID in plan.md appears in architecture.md; (c) Mermaid/code fences balanced; (d) required section lists complete (plan 20, arch 34). Fix any gaps with small targeted edits.
+**Exit criteria:** (1) the CLI agent fixes a seeded failing test in 3 fixture repos inside the sandbox; (2) ledger totals reconcile with provider-reported usage; (3) an Engine restart resumes a task.
 
-- Cross-check results: all plan `§` refs resolve (only `§15.6` is a plan-internal ref, OK); fences balanced (arch 26 Mermaid blocks); plan 20/20 + arch 34/34 sections present.
-  - GAP 1: 10 F-IDs were not named in architecture.md (F-AGT-1, F-AUTH-1/2, F-GIT-1, F-IDX-1, F-MDL-1, F-OBS-1, F-PRV-2, F-REV-2, F-SBX-1). 13 X-IDs not named (X5–7, X11–13, X15, X18, X20–24).
-  - GAP 2: F-REV-2 (SAST/secret/IaC) had no dedicated arch subsection.
-  - FIXED: added arch §25.10 (security analysis pipeline) + `security_findings` row in §21.1; plan F-REV-2 now has AC + points to §25.10; plan Appendix A points to arch §31.4/§31.5.
-  - DONE: added arch §31.4 (per-ID traceability table for all 76 F-IDs + X1–X24) and §31.5 (hooks for deferred/rejected X19–X24).
-  - Re-check PASSED: all 76 F-IDs and 24 X-IDs appear in architecture.md; all arch-internal `§` refs resolve; 94 fences balanced (26 Mermaid).
-- Step 4 [x] Cross-check done. Step 5 [x] Marked complete.
+- Completed tasks: progress.md initialized; architecture/plan reviewed.
+- In progress: monorepo scaffolding.
+- Remaining: everything else in M0 (see Next Actions).
+- Known issues: none yet.
+- Dependencies: Node 24 (built-in `node:sqlite`, TypeScript type stripping), pnpm 12.
+- Blockers: none yet. Environment notes: no Docker/Podman preinstalled in the dev VM; unprivileged user namespaces available; no provider API keys configured yet.
 
-## Next step
-- None. The task is complete. Optional future work, only if the user asks: run the hands-on competitor verification protocol (plan §15.6), or start M0 implementation from architecture.md §33.1. The original brief forbade implementation in this phase.
+## Feature Implementation Tracker
+
+Statuses: Not Started / In Progress / Implemented / Tested / Verified / Blocked / Deferred.
+
+| Feature ID | Feature | Status | Tests | Notes |
+|---|---|---|---|---|
+| F-MDL-1 | Provider adapter framework | In Progress | — | M0 scope. Arch §7.1, §7.2, §31.3 |
+| F-MDL-2 | Gemini integration | In Progress | — | M0 scope. Arch §7.3 |
+| F-MDL-3 | OpenAI integration (API key + Sign in with ChatGPT) | In Progress | — | M0 scope. Arch §7.4, §8.2 |
+| F-MDL-4 | Role-based model configuration | Not Started | — | Arch §7.5 |
+| F-MDL-5 | Automatic model router + fallback | Not Started | — | Arch §7.6, §29.5 |
+| F-AUTH-1 | Secure credential vault | In Progress | — | M0 scope. Arch §8.1, §8.3, §25.9 |
+| F-AUTH-2 | OAuth broker | Not Started | — | Arch §8.2 |
+| F-AUTH-3 | Helix account and org SSO | Not Started | — | Arch §8.5 |
+| F-IDX-1 | Incremental parser and symbol index | Not Started | — | Arch §11.1–11.3, §12.1, §12.4 |
+| F-IDX-2 | Precise references (SCIP/LSP) | Not Started | — | Arch §11.4 |
+| F-IDX-3 | Code graph | Not Started | — | Arch §11.5 |
+| F-IDX-4 | Hybrid retrieval engine | Not Started | — | Arch §11.6 |
+| F-IDX-5 | Domain extractors | Not Started | — | Arch §11.7 |
+| F-IDX-6 | Semantic embeddings (local-first) | Not Started | — | Arch §12.3 |
+| F-CTX-1 | Budgeted context assembler | Not Started | — | Arch §13.1–13.3 |
+| F-CTX-2 | Compaction | Not Started | — | Arch §13.4 |
+| F-CTX-3 | Project instructions | Not Started | — | Arch §13.5 |
+| F-CTX-4 | Typed project memory | Not Started | — | Arch §13.6 |
+| F-AGT-1 | Primary agent loop | In Progress | — | M0 scope. Arch §9.1–9.3, §30.1 |
+| F-AGT-2 | Plan Mode | Not Started | — | Arch §9.4 |
+| F-AGT-3 | Self-correction loop | In Progress | — | M0 subset: retry with diagnostics. Arch §9.5 |
+| F-AGT-4 | Verification gates | In Progress | — | M0 subset: single verify command gate (full gates M1). Arch §9.6 |
+| F-AGT-5 | Skills and hooks | Not Started | — | Arch §9.7 |
+| F-ORC-1 | Subagents | Not Started | — | Arch §10.1–10.2 |
+| F-ORC-2 | Task DAG scheduler | Not Started | — | Arch §10.3 |
+| F-ORC-3 | Write leases and worktrees | Not Started | — | Arch §10.4 |
+| F-ORC-4 | Human-in-the-loop approvals | In Progress | — | M0 subset: allow/ask/deny policy; headless ask→deny. Arch §10.5, §25.4 |
+| F-ORC-5 | Background and scheduled agents | Not Started | — | Arch §10.6, §30.4 |
+| F-SBX-1 | Sandbox provider abstraction | In Progress | — | M0 scope. Arch §16.1–16.2 |
+| F-SBX-2 | Whole-toolchain containment | Not Started | — | Arch §16.3 |
+| F-SBX-3 | Network egress control | Not Started | — | Arch §16.5 |
+| F-SBX-4 | Credential masking | Not Started | — | Arch §16.6, §8.3, §30.5 |
+| F-SBX-5 | Lifecycle and resources | In Progress | — | M0 subset: create/destroy + reaper. Arch §16.4 |
+| F-PRV-1 | Dev server detection and startup | Not Started | — | Arch §17.2 |
+| F-PRV-2 | Live preview panel | Not Started | — | Arch §17.1, §17.3–17.5 |
+| F-PRV-3 | Runtime telemetry | Not Started | — | Arch §18.3 |
+| F-PRV-4 | Environment Snapshot (X1) | Not Started | — | Arch §18.4, §29.3 |
+| F-PRV-5 | Browser automation tools | Not Started | — | Arch §18.5, §30.2 |
+| F-TRM-1 | Integrated terminal | In Progress | — | M0 scope. Arch §19.1–19.3 |
+| F-TRM-2 | Diagnostic parsers | Not Started | — | Arch §19.4 |
+| F-GIT-1 | Source control panel | Not Started | — | Arch §20.1–20.2, §5.2 |
+| F-GIT-2 | Shadow checkpoints | Not Started | — | Arch §20.3 |
+| F-GIT-3 | Worktree manager | Not Started | — | Arch §20.4 |
+| F-GIT-4 | PR integration | Not Started | — | Arch §20.5 |
+| F-GIT-5 | Git safeguards | Not Started | — | Arch §20.6 |
+| F-MCP-1 | MCP client manager | Not Started | — | Arch §14.1–14.3 |
+| F-MCP-2 | Tool registry and tool search (X7) | Not Started | — | Arch §14.4, §15.2 |
+| F-MCP-3 | Permissions and trust tiers | Not Started | — | Arch §14.6 |
+| F-MCP-4 | Result normalization, compression, caching | Not Started | — | Arch §15.4 |
+| F-MCP-5 | Injection defense | Not Started | — | Arch §25.6 |
+| F-TOK-1 | Token ledger | In Progress | — | M0 scope. Arch §29.1, §29.6 |
+| F-TOK-2 | Budgets | In Progress | — | M0 subset: hard budget pre-call check. Arch §29.6 |
+| F-TOK-3 | Deterministic-first policy | Not Started | — | Arch §29.2, §15.5 |
+| F-TOK-4 | Prompt-cache optimizer | Not Started | — | Arch §29.4 |
+| F-VIS-1 | Element→source mapping (X2) | Not Started | — | Arch §18.6 |
+| F-VIS-2 | Select-and-instruct | Not Started | — | Arch §18.6 |
+| F-VIS-3 | Visual regression (X10) | Not Started | — | Arch §18.7 |
+| F-VIS-4 | UI consistency analysis | Not Started | — | Arch §18.7 |
+| F-TST-1 | Change-based test selection | Not Started | — | Arch §11.5, §9.6 |
+| F-TST-2 | Test generation | Not Started | — | Arch §9.6 |
+| F-TST-3 | Browser E2E from recordings (X16) | Not Started | — | Arch §18.5 |
+| F-TST-4 | Bug auto-reproduction (X11) | Not Started | — | Arch §9.5 |
+| F-REV-1 | Review agent | Not Started | — | Arch §10.2 |
+| F-REV-2 | Security analysis | Not Started | — | Arch §25.10 |
+| F-REV-3 | Dependency risk gate (X17) | Not Started | — | Arch §16.7 |
+| F-UI-1 | Workbench | Not Started | — | Arch §5.1–5.3 |
+| F-UI-2 | Agent activity monitor | Not Started | — | Arch §5.4 |
+| F-UI-3 | Intelligence Explorer | Not Started | — | Arch §5.5 |
+| F-UI-4 | Artifacts | Not Started | — | Arch §5.6 |
+| F-OBS-1 | Traces and logs | In Progress | — | M0 scope. Arch §26.1–26.3 |
+| F-OBS-2 | Session replay (X14) | Not Started | — | Arch §26.4 |
+| F-OBS-3 | Audit log | In Progress | — | M0 subset: hash-chained audit_log. Arch §26.5 |
+| F-DEP-1 | Deploy adapters | Not Started | — | Arch §22.6 |
+| F-TEAM-1 | Org policies | Not Started | — | Arch §25.8 |
+| F-TEAM-2 | Shared memory and skills (X18) | Not Started | — | Arch §13.6 |
+| F-TEAM-3 | Cloud workspaces | Not Started | — | Arch §28.4, §6.3 |
+
+## Completed Work Log
+
+- **2026-11-06 — Docs phase (pre-M0).** `plan.md` and `architecture.md` completed and cross-checked. The docs-phase log moved to `docs/progress-docs-phase.md`.
+
+## Bugs and Known Issues
+
+| Issue ID | Description | Severity | Affected components | Root cause | Status | Resolution |
+|---|---|---|---|---|---|---|
+| — | none yet | — | — | — | — | — |
+
+## Architecture Decision Log
+
+(Deviations from or additions to `architecture.md`. Numbered `IMPL-ADR-n` to avoid clashing with architecture ADR-001…023.)
+
+## Test and Verification Results
+
+| Suite | Scope | Result | Evidence |
+|---|---|---|---|
+| — | — | Not tested | — |
+
+## Next Actions
+
+1. Scaffold the pnpm monorepo: `packages/protocol`, `packages/engine`, `apps/cli`, `fixtures/`.
