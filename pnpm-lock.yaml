@@ -78,15 +78,48 @@ importers:
       '@helix/protocol':
         specifier: workspace:*
         version: link:../protocol
+      '@helix/provider-gemini':
+        specifier: workspace:*
+        version: link:../providers/gemini
+      '@helix/provider-openai':
+        specifier: workspace:*
+        version: link:../providers/openai
       ws:
         specifier: ^8.22.1
         version: 8.22.1
     devDependencies:
+      '@helix/provider-conformance':
+        specifier: workspace:*
+        version: link:../providers/conformance
       '@types/ws':
         specifier: ^8.18.2
         version: 8.18.2
 
   packages/protocol: {}
+
+  packages/providers/conformance:
+    dependencies:
+      '@helix/protocol':
+        specifier: workspace:*
+        version: link:../../protocol
+      '@helix/provider-gemini':
+        specifier: workspace:*
+        version: link:../gemini
+      '@helix/provider-openai':
+        specifier: workspace:*
+        version: link:../openai
+
+  packages/providers/gemini:
+    dependencies:
+      '@helix/protocol':
+        specifier: workspace:*
+        version: link:../../protocol
+
+  packages/providers/openai:
+    dependencies:
+      '@helix/protocol':
+        specifier: workspace:*
+        version: link:../../protocol
 
 packages:
 

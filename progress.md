@@ -43,12 +43,12 @@ Statuses: Not Started / In Progress / Implemented / Tested / Verified / Blocked 
 
 | Feature ID | Feature | Status | Tests | Notes |
 |---|---|---|---|---|
-| F-MDL-1 | Provider adapter framework | In Progress | — | M0 scope. Arch §7.1, §7.2, §31.3 |
-| F-MDL-2 | Gemini integration | In Progress | — | M0 scope. Arch §7.3 |
-| F-MDL-3 | OpenAI integration (API key + Sign in with ChatGPT) | In Progress | — | M0 scope. Arch §7.4, §8.2 |
+| F-MDL-1 | Provider adapter framework | Tested | conformance 12/12 (fake servers) | IR + `ProviderAdapter` in `@helix/protocol` (IMPL-ADR-006); gateway with retry/breaker/budget pre-check. Arch §7.1, §7.2, §31.3 |
+| F-MDL-2 | Gemini integration | Tested | conformance 6 Gemini cases; live test skipped (no key) | `streamGenerateContent` SSE, function calling, thought-signature replay, usage normalization, error mapping, live model list + overlay. Context caching not yet. Arch §7.3 |
+| F-MDL-3 | OpenAI integration (API key + Sign in with ChatGPT) | In Progress | conformance 6 OpenAI cases; live test skipped (no key) | API-key mode Tested: Responses API SSE, function tools, encrypted reasoning items with `store:false`. SIWC not started (needs OpenAI approval, §7.4). Arch §7.4, §8.2 |
 | F-MDL-4 | Role-based model configuration | Not Started | — | Arch §7.5 |
 | F-MDL-5 | Automatic model router + fallback | Not Started | — | Arch §7.6, §29.5 |
-| F-AUTH-1 | Secure credential vault | In Progress | — | M0 scope. Arch §8.1, §8.3, §25.9 |
+| F-AUTH-1 | Secure credential vault | In Progress | engine models.test (vault case) | v0: env-only keys held in memory, redactor-registered, never forwarded to sandboxes; host path denylist incl. `~/.codex`. OS keychain pending (IMPL-ADR-010). Arch §8.1, §8.3, §25.9 |
 | F-AUTH-2 | OAuth broker | Not Started | — | Arch §8.2 |
 | F-AUTH-3 | Helix account and org SSO | Not Started | — | Arch §8.5 |
 | F-IDX-1 | Incremental parser and symbol index | Not Started | — | Arch §11.1–11.3, §12.1, §12.4 |
@@ -93,8 +93,8 @@ Statuses: Not Started / In Progress / Implemented / Tested / Verified / Blocked 
 | F-MCP-3 | Permissions and trust tiers | Not Started | — | Arch §14.6 |
 | F-MCP-4 | Result normalization, compression, caching | Not Started | — | Arch §15.4 |
 | F-MCP-5 | Injection defense | Not Started | — | Arch §25.6 |
-| F-TOK-1 | Token ledger | In Progress | — | M0 scope. Arch §29.1, §29.6 |
-| F-TOK-2 | Budgets | In Progress | — | M0 subset: hard budget pre-call check. Arch §29.6 |
+| F-TOK-1 | Token ledger | Tested | engine models.test: totals reconcile exactly with provider-reported usage (Gemini + OpenAI fakes) | Per-attempt rows, provider vs estimate source, cost from manifest pricing, `ledger.entry` events. Arch §29.1, §29.6 |
+| F-TOK-2 | Budgets | Tested | engine models.test: hard USD/token block before the provider call; soft threshold audit event | M0 subset: task + day scopes, pre-call check. Arch §29.6 |
 | F-TOK-3 | Deterministic-first policy | Not Started | — | Arch §29.2, §15.5 |
 | F-TOK-4 | Prompt-cache optimizer | Not Started | — | Arch §29.4 |
 | F-VIS-1 | Element→source mapping (X2) | Not Started | — | Arch §18.6 |
@@ -126,6 +126,10 @@ Statuses: Not Started / In Progress / Implemented / Tested / Verified / Blocked 
 - **2026-11-06 — M0, session 1 (recorded in session 2). Engine core.** Feature IDs: F-OBS-1, F-OBS-3 (subset), foundations for all M0 features.
   - Implemented: `packages/protocol/src/{index,jsonrpc}.ts` (JSON-RPC 2.0 peer with request/notify/timeouts, NDJSON `LineDecoder`, stdio `streamTransport`, event envelope §23.1, M0 method names §22.1); `packages/engine/src/storage/{db,migrations,blobs}.ts` (WAL SQLite, forward-only migrations with pre-migration backup, schema v1 for tasks/steps/messages/tool_calls/approvals/checkpoints/ledger/budgets/events/audit/spans/sandboxes; zstd blob store with integrity check); `events/bus.ts` (topic patterns, per-workspace monotonic seq, 50 ms/256 batching, sync hash-chained audit log, replay); `obs/tracing.ts` (W3C ids, parent/child via AsyncLocalStorage, SQLite span store, optional OTLP/HTTP JSON export); `util/{ids,log,redact}.ts`.
   - Tests: `packages/engine/test/core.test.ts` — 8 passed, 0 failed (session 2 re-run).
+- **2026-11-06 — M0, session 2. Model gateway.** Feature IDs: F-MDL-1, F-MDL-2, F-MDL-3 (API key), F-AUTH-1 (v0), F-TOK-1, F-TOK-2.
+  - Implemented: `packages/protocol/src/models.ts` (message IR, `ProviderAdapter`, `ModelManifest`, normalized `Usage`, `ProviderError` kinds, estimator), `packages/protocol/src/sse.ts` (incremental SSE parser); `packages/providers/gemini` (adapter + manifest overlay with 2026-11-06 pricing); `packages/providers/openai` (Responses API adapter + overlay); `packages/providers/conformance` (TEST-ONLY protocol-faithful fake Gemini/OpenAI servers that enforce auth, call/response pairing, and thought-signature echo; conformance suite incl. gated live tests); `packages/engine/src/vault/vault.ts`, `models/ledger.ts`, `models/gateway.ts`.
+  - Tests: conformance 12 passed, 2 skipped (live, no keys); engine 15 passed (8 core + 7 gateway/ledger/vault); `tsc -p tsconfig.helix.json` clean.
+  - Decisions: IMPL-ADR-006, IMPL-ADR-010, IMPL-ADR-011. Usage normalization: `inputTokens` includes cached tokens; `outputTokens` includes reasoning/thought tokens (both providers bill them as output), so Gemini `candidatesTokenCount + thoughtsTokenCount` maps to `outputTokens`.
 
 ## Bugs and Known Issues
 
@@ -144,17 +148,24 @@ Statuses: Not Started / In Progress / Implemented / Tested / Verified / Blocked 
 | IMPL-ADR-003 | M0 uses one engine DB (`$HELIX_HOME/engine.sqlite`) with a `ws` column instead of per-workspace `meta.sqlite` + `global.sqlite` (§21.1–21.2) | No index tables exist yet; one file simplifies recovery | Split now | Split planned for M1 when the indexer lands; migrations are forward-only so the split is a new migration + copy | storage, api |
 | IMPL-ADR-004 | SHA-256 for blob addresses and the audit hash chain instead of BLAKE3 (§21.3, §26.5) | BLAKE3 needs the Rust `helix-diff` addon, which is not built yet | JS BLAKE3 port | Hash function switch later needs a chain re-anchor record | storage, events |
 | IMPL-ADR-005 | Native OTel-compatible tracer (OTLP/HTTP JSON export) instead of the OpenTelemetry SDK | Same data model and wire format without ~40 transitive deps | `@opentelemetry/sdk-node` | Must track OTLP JSON changes manually | obs |
+| IMPL-ADR-006 | Message IR and the `ProviderAdapter` contract live in `@helix/protocol`; adapters are separate packages under `packages/providers/*` (§32). `tool_result.content` is a string in M0 instead of `Part[]` (§7.1) | Avoids an engine↔provider dependency cycle; transcripts are also API payloads (`task.transcript`). Image tool results are not needed until M1 | Contract inside `engine/models` | Protocol package grows beyond JSON-RPC types; `content: Part[]` is a compatible widening later | protocol, providers, engine |
+| IMPL-ADR-010 | Vault v0 reads provider keys only from the Engine's environment, holds them in memory, and registers them with the redactor. No on-disk secret store yet | The dev VM has no OS keychain; an encrypted file with a co-located key would be security theater | Encrypted file; libsecret | Users set `GEMINI_API_KEY` / `OPENAI_API_KEY`. OS keychain (macOS Keychain, libsecret, Windows Credential Manager) arrives with the desktop app (M1) | vault |
+| IMPL-ADR-011 | Provider tests use protocol-faithful fake HTTP servers (`@helix/provider-conformance`) instead of mocked adapters; live tests run automatically when keys exist | Exercises the real adapter code, SSE parsing, and usage reconciliation offline and deterministically | Mock `fetch`; recorded cassettes | Fake servers must track provider API changes; they verify plumbing, never model quality | providers, engine tests |
 
 ## Test and Verification Results
 
 | Suite | Scope | Result | Evidence |
 |---|---|---|---|
 | engine core unit | JSON-RPC, NDJSON framing, migrations, blobs, event bus, audit chain, tracer, redactor, ids | Test passed (8/8) | `pnpm --filter @helix/engine test`, session 2 |
+| provider conformance | Gemini + OpenAI: streaming, tool round trip, provider state replay, error normalization, abort, model list merge, cross-provider portability | Test passed (12/12) | `pnpm --filter @helix/provider-conformance test` |
+| provider live | Real Gemini / OpenAI call with tool use | Not tested (no API keys in environment; tests auto-skip) | — |
+| gateway + ledger | Ledger reconciliation vs provider-reported usage, retries, breaker, budgets, vault | Test passed (7/7) | `packages/engine/test/models.test.ts` |
+| typecheck | all Helix packages | Test passed | `tsc -p tsconfig.helix.json` |
 
 ## Next Actions
 
-1. Model gateway: message IR + `ProviderAdapter` contract, Gemini adapter (`streamGenerateContent` SSE, function calling with thought signatures), OpenAI adapter (Responses API SSE, function tools, encrypted reasoning items), bundled manifests with pricing, conformance suite against protocol-faithful fake servers.
-2. Ledger v0 + budget pre-call check.
+1. (done) Model gateway, ledger v0, budgets.
+2. (done) —
 3. Sandbox (`unshare`-based), shell execution, policy engine, tool framework.
 4. Agent loop, task persistence/recovery, JSON-RPC server (stdio + WebSocket), CLI `helix -p`.
 5. Three fixture repos with seeded failing tests and the M0 exit test suite.
