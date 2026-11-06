@@ -6,16 +6,16 @@
 
 - Project: Helix
 - Current Phase: M0 — Engineering Foundations
-- Overall Completion: ~2% (M0 just started; M1–M6 not started)
+- Overall Completion: ~3% (M0 in progress; M1–M6 not started)
 - Current Status: In Progress
-- Last Updated: 2026-11-06
-- Current Development Branch: `helix/m0-foundations`
+- Last Updated: 2026-11-06 (session 2, resumed after session 1 ran out of credits)
+- Current Development Branch: `helix/m0-foundations` (base: `main` of github.com/daggerm29-oss/4)
 
 ## Phase Overview
 
 | Phase | Name | Status | Completion |
 |---|---|---|---|
-| M0 | Engineering Foundations | In Progress | 5% |
+| M0 | Engineering Foundations | In Progress | 20% |
 | M1 | Core MVP | Not Started | 0% |
 | M2 | Advanced Intelligence | Not Started | 0% |
 | M3 | Multi-Agent Intelligence | Not Started | 0% |
@@ -29,12 +29,13 @@
 
 **Exit criteria:** (1) the CLI agent fixes a seeded failing test in 3 fixture repos inside the sandbox; (2) ledger totals reconcile with provider-reported usage; (3) an Engine restart resumes a task.
 
-- Completed tasks: progress.md initialized; architecture/plan reviewed.
-- In progress: monorepo scaffolding.
-- Remaining: everything else in M0 (see Next Actions).
-- Known issues: none yet.
+- Completed tasks: progress.md initialized; architecture/plan reviewed; pnpm workspace (`packages/*`, `apps/*`); `@helix/protocol` (JSON-RPC 2.0 peer, NDJSON framing, method/event types); engine core: SQLite storage + migrations, content-addressed blob store, event bus (batched log + hash-chained audit), OTel-compatible tracer, redacting logger, ID utils. 8/8 core tests pass (re-run in session 2).
+- In progress (session 2): model gateway (Gemini + OpenAI adapters, conformance suite, ledger, budgets).
+- Remaining: sandbox, terminal execution, policy, tool framework, agent loop, task persistence/recovery, JSON-RPC server, CLI, fixtures, exit tests.
+- Known issues: see Bugs table.
 - Dependencies: Node 24 (built-in `node:sqlite`, TypeScript type stripping), pnpm 12.
-- Blockers: none yet. Environment notes: no Docker/Podman preinstalled in the dev VM; unprivileged user namespaces available; no provider API keys configured yet.
+- Blockers: none hard. Environment notes: no Docker/Podman/bubblewrap in the dev VM; util-linux `unshare`, `setpriv`, `prlimit`, `pivot_root` available and unprivileged user namespaces work; cgroup v2 is not delegated to the unprivileged user; no provider API keys configured (live model calls cannot be verified until `GEMINI_API_KEY` / `OPENAI_API_KEY` are provided).
+- Session note: session 1 wrote the engine core but ran out of credits before recording it here. Session 2 cloned the GitHub repo, re-ran the core tests, and logged that work below.
 
 ## Feature Implementation Tracker
 
@@ -122,6 +123,9 @@ Statuses: Not Started / In Progress / Implemented / Tested / Verified / Blocked 
 ## Completed Work Log
 
 - **2026-11-06 — Docs phase (pre-M0).** `plan.md` and `architecture.md` completed and cross-checked. The docs-phase log moved to `docs/progress-docs-phase.md`.
+- **2026-11-06 — M0, session 1 (recorded in session 2). Engine core.** Feature IDs: F-OBS-1, F-OBS-3 (subset), foundations for all M0 features.
+  - Implemented: `packages/protocol/src/{index,jsonrpc}.ts` (JSON-RPC 2.0 peer with request/notify/timeouts, NDJSON `LineDecoder`, stdio `streamTransport`, event envelope §23.1, M0 method names §22.1); `packages/engine/src/storage/{db,migrations,blobs}.ts` (WAL SQLite, forward-only migrations with pre-migration backup, schema v1 for tasks/steps/messages/tool_calls/approvals/checkpoints/ledger/budgets/events/audit/spans/sandboxes; zstd blob store with integrity check); `events/bus.ts` (topic patterns, per-workspace monotonic seq, 50 ms/256 batching, sync hash-chained audit log, replay); `obs/tracing.ts` (W3C ids, parent/child via AsyncLocalStorage, SQLite span store, optional OTLP/HTTP JSON export); `util/{ids,log,redact}.ts`.
+  - Tests: `packages/engine/test/core.test.ts` — 8 passed, 0 failed (session 2 re-run).
 
 ## Bugs and Known Issues
 
@@ -133,12 +137,24 @@ Statuses: Not Started / In Progress / Implemented / Tested / Verified / Blocked 
 
 (Deviations from or additions to `architecture.md`. Numbered `IMPL-ADR-n` to avoid clashing with architecture ADR-001…023.)
 
+| ID | Decision | Reason | Alternatives considered | Consequences | Affected |
+|---|---|---|---|---|---|
+| IMPL-ADR-001 | TypeScript runs through Node 24 native type stripping; packages export `src/*.ts`; no build step in M0 (`erasableSyntaxOnly`) | Zero toolchain overhead; fast iteration | tsc/esbuild build per package | No enums/namespaces/parameter properties; desktop (M1) will need a bundler | all packages |
+| IMPL-ADR-002 | Built-in `node:sqlite` instead of a native SQLite addon | No native compile step; synchronous API gives the single-writer rule of §21.1 for free | better-sqlite3 | Experimental API warning (suppressed in scripts) | storage |
+| IMPL-ADR-003 | M0 uses one engine DB (`$HELIX_HOME/engine.sqlite`) with a `ws` column instead of per-workspace `meta.sqlite` + `global.sqlite` (§21.1–21.2) | No index tables exist yet; one file simplifies recovery | Split now | Split planned for M1 when the indexer lands; migrations are forward-only so the split is a new migration + copy | storage, api |
+| IMPL-ADR-004 | SHA-256 for blob addresses and the audit hash chain instead of BLAKE3 (§21.3, §26.5) | BLAKE3 needs the Rust `helix-diff` addon, which is not built yet | JS BLAKE3 port | Hash function switch later needs a chain re-anchor record | storage, events |
+| IMPL-ADR-005 | Native OTel-compatible tracer (OTLP/HTTP JSON export) instead of the OpenTelemetry SDK | Same data model and wire format without ~40 transitive deps | `@opentelemetry/sdk-node` | Must track OTLP JSON changes manually | obs |
+
 ## Test and Verification Results
 
 | Suite | Scope | Result | Evidence |
 |---|---|---|---|
-| — | — | Not tested | — |
+| engine core unit | JSON-RPC, NDJSON framing, migrations, blobs, event bus, audit chain, tracer, redactor, ids | Test passed (8/8) | `pnpm --filter @helix/engine test`, session 2 |
 
 ## Next Actions
 
-1. Scaffold the pnpm monorepo: `packages/protocol`, `packages/engine`, `apps/cli`, `fixtures/`.
+1. Model gateway: message IR + `ProviderAdapter` contract, Gemini adapter (`streamGenerateContent` SSE, function calling with thought signatures), OpenAI adapter (Responses API SSE, function tools, encrypted reasoning items), bundled manifests with pricing, conformance suite against protocol-faithful fake servers.
+2. Ledger v0 + budget pre-call check.
+3. Sandbox (`unshare`-based), shell execution, policy engine, tool framework.
+4. Agent loop, task persistence/recovery, JSON-RPC server (stdio + WebSocket), CLI `helix -p`.
+5. Three fixture repos with seeded failing tests and the M0 exit test suite.
